@@ -6,6 +6,16 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <Spinner
+        android:id="@+id/seconds_spinner"
+        android:layout_width="107dp"
+        android:layout_height="22dp"
+        android:layout_marginTop="24dp"
+        android:fadeScrollbars="true"
+        android:spinnerMode="dropdown"
+        app:layout_constraintStart_toStartOf="@+id/every_seconds_text"
+        app:layout_constraintTop_toBottomOf="@+id/every_seconds_text" />
+
     <TextView
         android:id="@+id/service_status_caption"
         android:layout_width="146dp"
@@ -39,10 +49,9 @@
         android:layout_width="157dp"
         android:layout_height="39dp"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="124dp"
         android:text="@string/stop_service_btn"
         app:layout_constraintStart_toEndOf="@+id/start_service_btn"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="@+id/start_service_btn" />
 
     <Button
         android:id="@+id/start_service_btn"
@@ -61,6 +70,43 @@
         android:text="@string/auto_start_caption"
         app:layout_constraintStart_toStartOf="@+id/start_service_btn"
         app:layout_constraintTop_toBottomOf="@+id/start_service_btn" />
+
+    <CheckBox
+        android:id="@+id/storeOnSD_checkBox"
+        android:layout_width="111dp"
+        android:layout_height="34dp"
+        android:layout_marginTop="1dp"
+        android:text="@string/storeOnSD_caption"
+        app:layout_constraintStart_toStartOf="@+id/autostart_checkBox"
+        app:layout_constraintTop_toBottomOf="@+id/autostart_checkBox" />
+
+    <TextView
+        android:id="@+id/every_seconds_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:text="@string/periodicity"
+        app:layout_constraintStart_toStartOf="@+id/storeOnSD_checkBox"
+        app:layout_constraintTop_toBottomOf="@+id/storeOnSD_checkBox" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="60dp"
+        android:text="@string/max_files"
+        app:layout_constraintStart_toStartOf="@+id/seconds_spinner"
+        app:layout_constraintTop_toBottomOf="@+id/seconds_spinner" />
+
+    <Spinner
+        android:id="@+id/maxFiles_spinner"
+        android:layout_width="107dp"
+        android:layout_height="22dp"
+        android:layout_marginStart="100dp"
+        android:fadeScrollbars="true"
+        android:spinnerMode="dialog"
+        app:layout_constraintStart_toEndOf="@+id/textView2"
+        app:layout_constraintTop_toTopOf="@+id/textView2" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

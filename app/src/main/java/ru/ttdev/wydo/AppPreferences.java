@@ -2,6 +2,8 @@ package ru.ttdev.wydo;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Environment;
+import android.util.Log;
 
 public class AppPreferences {
 
@@ -9,6 +11,7 @@ public class AppPreferences {
     private static final String AUTOSTART = "service_auto_start";
     private static final String DELAY_SECONDS = "delay_second";
     private static final String STORE_TO_SD = "store in SD";
+    private static final String MAX_FILES = "max_files_count";
 
     private static void savePreference(String key, Object value) {
         SharedPreferences.Editor editor = AppApplication.getAppContext()
@@ -46,8 +49,15 @@ public class AppPreferences {
         return sharedPref.getBoolean(STORE_TO_SD, true);
     }
 
-    public static void setStoreSD(boolean store_to_sd) {
-        savePreference(STORE_TO_SD, store_to_sd);
+    public static void setStoreSD(boolean store_to_sd){
+        // если sd недоступна
+        if( store_to_sd && !Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) ) {
+            savePreference(STORE_TO_SD, false);
+            return;
+        }
+        // TODO: Вернуть к жизни, когда SD will work
+//        savePreference(STORE_TO_SD, store_to_sd);
+        savePreference( STORE_TO_SD, false );
     }
 
     public static Integer getDelay() {
@@ -58,5 +68,15 @@ public class AppPreferences {
 
     public static void setDelay(Integer delay_seconds) {
         savePreference(DELAY_SECONDS, delay_seconds);
+    }
+
+    public static void setMaxFilesCount( Integer count ){
+        savePreference(MAX_FILES, count);
+    }
+
+    public static Integer getMaxFilesCount(){
+        SharedPreferences sharedPref = AppApplication.getAppContext()
+                .getSharedPreferences(APP_PREFERENCES, Context.MODE_PRIVATE);
+        return sharedPref.getInt(MAX_FILES, 100);
     }
 }
