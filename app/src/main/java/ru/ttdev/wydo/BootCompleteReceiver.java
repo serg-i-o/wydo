@@ -26,6 +26,7 @@ public class BootCompleteReceiver extends BroadcastReceiver {
             Log.d(TAG, "external app available detected");
 
         Log.d(TAG, "bootcomplete recevied");
-//        ScreenshotService.checkAndStartService();
+        if (AppPreferences.getAutoStart())
+            ScreenshotService.checkAndStartService();
     }
 }

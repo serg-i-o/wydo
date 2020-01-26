@@ -7,4 +7,7 @@
     <string name="service_status_running">running</string>
     <string name="service_status_stopped">stopped</string>
     <string name="auto_start_caption">autostart</string>
+    <string name="storeOnSD_caption">store on SD</string>
+    <string name="max_files">Max files</string>
+    <string name="periodicity">Periodicity</string>
 </resources>
