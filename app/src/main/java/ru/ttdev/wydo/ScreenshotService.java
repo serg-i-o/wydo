@@ -28,13 +28,14 @@ import java.sql.Array;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 
 public class ScreenshotService extends Service {
     private static final String LOG_TAG = "ScreenService";
     public static final String NOTIFICATION_CHANNEL_ID="wydo_notify_channel";
     public static final int NOTIFICATION_ID = 0xABC123;
-    public FilesWorker filesWorker = new FilesWorker();
+//    public FilesWorker filesWorker = new FilesWorker();
 
     private Context context;
     private Integer delay_seconds;
@@ -116,10 +117,6 @@ public class ScreenshotService extends Service {
         context = AppApplication.getAppContext();
         instance = this;
 
-        delay_seconds = AppPreferences.getDelay();
-        max_count = AppPreferences.getMaxFilesCount();
-        store_to_sd = AppPreferences.getStoreSD();
-
         Log.d(LOG_TAG, "onCreate");
 
         IntentFilter filter = new IntentFilter();
@@ -127,10 +124,6 @@ public class ScreenshotService extends Service {
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         mScreenReceiver = new ScreenReceiver();
         registerReceiver(mScreenReceiver, filter);
-
-//        mHandler = new Handler();
-//        mMonitorRunnable = new MonitorRunnable();
-//        mHandler.post(mMonitorRunnable);
 
 //        startNotification();
     }
@@ -151,11 +144,25 @@ public class ScreenshotService extends Service {
         max_count = AppPreferences.getMaxFilesCount();
         store_to_sd = AppPreferences.getStoreSD();
 
+        if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
+            store_to_sd = false;
+            Log.d(LOG_TAG, "SD not mounted or read only");
+        }
+
         foregroundify();
 
         return START_STICKY;
     }
 
+    public static boolean isExternalStorageReadOnly() {
+        String extStorageState = Environment.getExternalStorageState();
+        return Environment.MEDIA_MOUNTED_READ_ONLY.equals(extStorageState);
+    }
+
+    public static boolean isExternalStorageAvailable() {
+        String extStorageState = Environment.getExternalStorageState();
+        return Environment.MEDIA_MOUNTED.equals(extStorageState);
+    }
 
     private void foregroundify(){
         NotificationManager mgr=
@@ -199,7 +206,7 @@ public class ScreenshotService extends Service {
         public void run() {
             if (pm.isInteractive()){
                 Log.d(LOG_TAG, "try start filecreator");
-                filesWorker.createTextFile();
+                createTextFile();
                 mHandler.postDelayed(mMonitorRunnable, delay_seconds * 1000);
             } else {
                 Log.d(LOG_TAG, "service standby mode");
@@ -208,91 +215,69 @@ public class ScreenshotService extends Service {
         }
     }
 
-    private final class FilesWorker {
 
-        public void createTextFile(  ){
+    public void createTextFile(  ){
+        Date dateNow = new Date();
+        SimpleDateFormat formatForDateNow = new SimpleDateFormat("yyMMddHHmmss");
+        String today = formatForDateNow.format(dateNow);
+        String filename = today + ".txt";
 
-            Date dateNow = new Date();
-            SimpleDateFormat formatForDateNow = new SimpleDateFormat("yyMMddHHmmss");
-            String today = formatForDateNow.format(dateNow);
-            String filename = today + ".txt";
-
-            FileOutputStream fos = null;
+        FileOutputStream fos = null;
+        try {
+            if(store_to_sd){
+                Log.d(LOG_TAG, String.format("external directory: %s", getExternalFilesDir(null)));
+                File fileOnSd = new File(getExternalFilesDir(null), filename);
+                fos = new FileOutputStream(fileOnSd);
+            }else {
+                fos = openFileOutput(filename, MODE_PRIVATE);
+            }
+            fos.write(today.getBytes());
+        }
+        catch(IOException ex) {
+            Log.d(LOG_TAG, ex.toString() );
+            return;
+        }
+        finally {
             try {
-                if( store_to_sd && isExternalStorageWriteable() ){
-                    Log.d( LOG_TAG, "Я 210 строка, не понимаю как работать с SD!!" );
-                    return; // TODO: вернуть к жизни, когда с SD разбирусь
-                    /*File fileOnSd = new File(Environment.getExternalStorageDirectory(), filename);
-                    fileOnSd.mkdirs();
-                    fos = new FileOutputStream(fileOnSd);*/
-                }else {
-                    fos = openFileOutput(filename, MODE_PRIVATE);
-                }
-                fos.write(today.getBytes());
-            }
-            catch(IOException ex) {
-                Log.d(LOG_TAG, ex.toString() );
-                Log.d(LOG_TAG, "is writeable " + isExternalStorageWriteable());
-                return;
-            }
-            finally {
-                try {
-                    if (fos != null)
-                        fos.close();
-                } catch (IOException ex) {
-//                    Log.d(LOG_TAG, "Can't close stream");
-                }
-            }
-            clearFiles();
-        }
-
-
-        private void clearFiles() {
-            if ( store_to_sd ){
-                return; // TODO: вернуть к жизни, когда с SD разбирусь
-              /*  File file = Environment.getExternalStorageDirectory();
-
-                File files[] = file.listFiles();
-                Log.d( LOG_TAG, files.length + "" );
-                Arrays.sort( files );
-
-                if( files.length > maxFilesCount ){
-                    File[] filesToRemove = Arrays.copyOfRange( files, maxFilesCount - 1, files.length - 1 );
-
-                    Log.d( LOG_TAG, "Before clearing " + fileList().length );
-
-                    for( File f: files )
-                        f.delete();
-
-                    Log.d( LOG_TAG, "After clearing " + fileList().length );
-                }
-
-                for( File f: files )
-                    f.delete();
-
-                return;*/
-            }
-
-            String[] files = fileList();
-            Arrays.sort( files );
-
-            if( files.length > max_count ){
-                String[] filesToRemove = Arrays.copyOfRange( files, max_count - 1, files.length - 1 );
-
-                Log.d( LOG_TAG, "Before clearing " + fileList().length );
-                for( String name: filesToRemove ){
-                    deleteFile( name );
-                }
-                Log.d( LOG_TAG, "After clearing " + fileList().length );
+                if (fos != null) fos.close();
+            } catch (IOException ex) {
+                Log.d(LOG_TAG, "Can't close stream", ex);
             }
         }
+        clearFiles();
+    }
 
-        // проверяем, доступна ли сд для чтения и записи
-        public boolean isExternalStorageWriteable(){
-            String state = Environment.getExternalStorageState();
-            return  Environment.MEDIA_MOUNTED.equals(state);
+
+    private void clearFiles() {
+        File filesDir = null;
+        if ( store_to_sd ){
+            filesDir = getExternalFilesDir(null);
+        } else {
+            filesDir = getFilesDir();
         }
 
+        if(filesDir == null || filesDir.listFiles() == null){
+            Log.d(LOG_TAG, "No files found in the app dir" + getFilesDir().toString());
+            return;
+        }
+        File[] fileList = filesDir.listFiles();
+
+        Log.d( LOG_TAG, "Before clearing " + fileList.length );
+
+        if(fileList.length > max_count ){
+            File[] filesToRemove = Arrays.copyOfRange( fileList, max_count - 1, fileList.length - 1 );
+            for( File fileToDel: filesToRemove ){
+                Log.d(LOG_TAG, String.format("File to delete: %s", fileToDel.getPath()));
+                if (fileToDel.exists()) {
+                    if (fileToDel.delete()) {
+                        System.out.println("file Deleted :" + fileToDel.getPath());
+                    } else {
+                        System.out.println("file not Deleted :" + fileToDel.getPath());
+                    }
+                }
+            }
+        }
+        Log.d( LOG_TAG, "After clearing " + getFilesDir().listFiles().length );
     }
 
     private final class ScreenReceiver extends BroadcastReceiver {

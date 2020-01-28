@@ -1,11 +1,14 @@
 package ru.ttdev.wydo;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -19,6 +22,7 @@ import android.widget.CompoundButton;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.w3c.dom.Text;
 
@@ -28,6 +32,7 @@ import static ru.ttdev.wydo.ScreenshotService.NOTIFICATION_CHANNEL_ID;
 
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "MainActivity";
+    private static final int PERMISSION_REQUEST_CODE = 100;
 
     private TextView serviceStatusTextView;
     private Button startButton;
@@ -96,7 +101,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 AppPreferences.setStoreSD(b);
-                update_service_view();
+                Log.d(LOG_TAG, String.format("StoreSd checkbox click result = %b", b));
+                Log.d(LOG_TAG, String.format("Stored SD preference = %b", AppPreferences.getStoreSD()));
+                checkAndUpdateSoreSdView();
             }
         });
 
@@ -108,28 +115,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        update_service_view();
-//        boolean service_status = ServiceHelper.isMyServiceRunning(ScreenshotService.class);
-//        if (service_status) {
-//            serviceStatusTextView.setText(R.string.service_status_running);
-//            startButton.setEnabled(false);
-//            stopButton.setEnabled(true);
-//        } else {
-//            serviceStatusTextView.setText(R.string.service_status_stopped);
-//            startButton.setEnabled(true);
-//            stopButton.setEnabled(false);
-//        }
-
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Start button clicked");
                 ScreenshotService.checkAndStartService();
-//                startButton.setEnabled(false);
-//                stopButton.setEnabled(true);
-                //check_notification_settings();
                 update_service_view();
                 // TODO: вернуть к жизни notifications
+                //check_notification_settings();
             }
         });
 
@@ -138,13 +131,11 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Stop button clicked");
                 ScreenshotService.checkAndStopService();
-//                startButton.setEnabled(true);
-//                stopButton.setEnabled(false);
                 update_service_view();
             }
         });
 
-
+        update_service_view();
     }
 
     private void check_notification_settings(){
@@ -174,10 +165,9 @@ public class MainActivity extends AppCompatActivity {
 
         Integer delay_seconds = AppPreferences.getDelay();
         Integer max_count = AppPreferences.getMaxFilesCount();
-        boolean store_to_sd = AppPreferences.getStoreSD();
         boolean autostart = AppPreferences.getAutoStart();
 
-        storeOnSD.setChecked(store_to_sd);
+        checkAndUpdateSoreSdView();
         autoStartCheckBox.setChecked(autostart);
 
         int id = Arrays.asList(filesCountValues).indexOf( max_count.toString() );
@@ -187,6 +177,68 @@ public class MainActivity extends AppCompatActivity {
         secondsSpinner.setSelection( id == -1 ? 0 : id );
     }
 
+    private void checkAndUpdateSoreSdView(){
+        boolean store_to_sd = AppPreferences.getStoreSD();
+        boolean sd_available = ScreenshotService.isExternalStorageAvailable();
+        boolean sd_writable = !ScreenshotService.isExternalStorageReadOnly();
+        Log.d(LOG_TAG, String.format("store_to_sd=%b, sd_available=%b, sd_writable=%b", store_to_sd, sd_available, sd_writable));
+
+        if((store_to_sd && !sd_available) || (store_to_sd && !sd_writable)){
+            AppPreferences.setStoreSD(false);
+            storeOnSD.setChecked(false);
+            storeOnSD.setEnabled(false);
+            Log.d(LOG_TAG, "External storage is unavailable or read-only");
+            Toast.makeText(MainActivity.this, "External storage is unavailable or read-only.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        boolean ext_storage_permission = checkPermission();
+        Log.d(LOG_TAG, String.format("ext_storage_permission=%b", ext_storage_permission));
+        if(store_to_sd && !ext_storage_permission){
+            AppPreferences.setStoreSD(false);
+            requestPermission();
+        }
+
+        storeOnSD.setChecked(store_to_sd);
+    }
+
+    private boolean checkPermission() {
+        int result = ContextCompat.checkSelfPermission(
+                MainActivity.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+        );
+        return result == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestPermission() {
+        Log.d(LOG_TAG, "Try to enable ext sorage permissions");
+        if (ActivityCompat
+                .shouldShowRequestPermissionRationale(
+                        MainActivity.this,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+        ) {
+            Toast.makeText(MainActivity.this, "Write External Storage permission allows us to save files. Please allow this permission in App Settings.", Toast.LENGTH_LONG).show();
+        } else {
+            ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_CODE:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.e("value", "Permission Granted, Now you can use local drive .");
+                AppPreferences.setStoreSD(true);
+                checkAndUpdateSoreSdView();
+            } else {
+                Log.e("value", "Permission Denied, You cannot use local drive .");
+                AppPreferences.setStoreSD(false);
+                checkAndUpdateSoreSdView();
+            }
+            break;
+        }
+    }
     
 //    View.OnClickListener startButtonList = new View.OnClickListener() {
 //        @Override

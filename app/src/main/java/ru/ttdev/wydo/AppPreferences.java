@@ -50,14 +50,7 @@ public class AppPreferences {
     }
 
     public static void setStoreSD(boolean store_to_sd){
-        // если sd недоступна
-        if( store_to_sd && !Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) ) {
-            savePreference(STORE_TO_SD, false);
-            return;
-        }
-        // TODO: Вернуть к жизни, когда SD will work
-//        savePreference(STORE_TO_SD, store_to_sd);
-        savePreference( STORE_TO_SD, false );
+        savePreference(STORE_TO_SD, store_to_sd);
     }
 
     public static Integer getDelay() {
