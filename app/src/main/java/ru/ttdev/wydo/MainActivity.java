@@ -4,11 +4,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import android.app.NotificationChannel;
+import android.app.Activity;
 import android.app.NotificationManager;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -19,12 +19,9 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import org.w3c.dom.Text;
 
 import java.util.Arrays;
 
@@ -34,6 +31,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "MainActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
 
+    private static final int REQUEST_MEDIA_PROJECTION = 1;
+    private static final String STATE_RESULT_CODE = "result_code";
+    private static final String STATE_RESULT_DATA = "result_data";
+
     private TextView serviceStatusTextView;
     private Button startButton;
     private Button stopButton;
@@ -41,6 +42,10 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox storeOnSD;
     private Spinner secondsSpinner;
     private Spinner maxFilesSpinner;
+
+    private MediaProjectionManager mMediaProjectionManager;
+    private int mResultCode;
+    private Intent mResultData;
 
     private static String[] filesCountValues = {"10", "100", "300", "500", "1000", "2000"};
     private static String[] secondsDelayValues = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
@@ -74,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
                 AppPreferences.setDelay( Integer.parseInt( secondsSpinner.getSelectedItem().toString() ));
-                ScreenshotService.updateValues();
+//                ScreenshotService.updateValues();
                 update_service_view();
             }
 
@@ -119,7 +124,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Start button clicked");
-                ScreenshotService.checkAndStartService();
+//                ScreenshotService.checkAndStartService();
+                startMediaProjectionActivityForResult();
                 update_service_view();
                 // TODO: вернуть к жизни notifications
                 //check_notification_settings();
@@ -130,12 +136,28 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Stop button clicked");
-                ScreenshotService.checkAndStopService();
+//                ScreenshotService.checkAndStopService();
                 update_service_view();
             }
         });
 
         update_service_view();
+
+//        startMediaProjectionActivityForResult();
+    }
+
+    private void startMediaProjectionActivityForResult(){
+//        mMediaProjectionManager = (MediaProjectionManager) this.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+//
+//        Log.i(LOG_TAG, "Requesting media projection confirmation");
+//        // This initiates a prompt dialog for the user to confirm screen projection.
+//        startActivityForResult(
+//                mMediaProjectionManager.createScreenCaptureIntent(),
+//                REQUEST_MEDIA_PROJECTION);
+        Log.d(LOG_TAG, "start Media Projection for result");
+        mMediaProjectionManager = (MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);
+
+        startActivityForResult(mMediaProjectionManager.createScreenCaptureIntent(), REQUEST_MEDIA_PROJECTION);
     }
 
     private void check_notification_settings(){
@@ -239,11 +261,49 @@ public class MainActivity extends AppCompatActivity {
             break;
         }
     }
-    
-//    View.OnClickListener startButtonList = new View.OnClickListener() {
-//        @Override
-//        public void onClick(View v) {
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_MEDIA_PROJECTION) {
+            if (resultCode != Activity.RESULT_OK) {
+                Log.i(LOG_TAG, "User cancelled");
+                Toast.makeText(this, "User cancelled", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Log.i(LOG_TAG, "Try set result to service");
+//            mResultCode = resultCode;
+//            mResultData = data;
+//            ScreenshotService svc = ScreenshotService.getInstance();
+//            if(svc != null){
+//                Log.d(LOG_TAG, "Try to set media projection request result");
+//                svc.setMediaProjResults(mResultCode, mResultData);
+            Intent intent =
+                    new Intent(this, ScreenshotService.class)
+                            .putExtra(ScreenshotService.EXTRA_RESULT_CODE, resultCode)
+                            .putExtra(ScreenshotService.EXTRA_RESULT_INTENT, data);
+
+            startService(intent);
+        }
+
+//        finish();
+    }
+
+//    @Override
+//    public void onDestroy() {
+//        super.onDestroy();
+//        tearDownMediaProjection();
+//    }
 //
+//    private void setUpMediaProjection() {
+//        mMediaProjection = mMediaProjectionManager.getMediaProjection(mResultCode, mResultData);
+//    }
+//
+//    private void tearDownMediaProjection() {
+//        if (mMediaProjection != null) {
+//            mMediaProjection.stop();
+//            mMediaProjection = null;
 //        }
-//    };
+//    }
 }

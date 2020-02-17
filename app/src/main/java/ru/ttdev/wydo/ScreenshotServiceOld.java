@@ -126,7 +126,7 @@
 //    return(wmgr);
 //  }
 //
-//  Handler getHandler() {
+//  Handler getImageSavingHandler() {
 //    Log.i(TAG, "Get handler");
 //    return(handler);
 //  }
