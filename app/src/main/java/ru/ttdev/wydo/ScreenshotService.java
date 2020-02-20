@@ -78,54 +78,48 @@ public class ScreenshotService extends Service {
         return ServiceHelper.isMyServiceRunning(ScreenshotService.class);
     }
 
-//    public static void updateValues() {
-//        updateService();
-//    }
+    public static void updateValues() {
+        updateService();
+    }
 
     public void stop() {
         context.stopService(new Intent(context, ScreenshotService.class));
         Log.d(LOG_TAG, "stop");
     }
 
-//    public void forceRestart() {
-//        Log.d(LOG_TAG, "forceRestart");
-//        stop();
-//        checkAndStartService();
-//    }
-
-//    private static void updateService(){ // Чтобы обновить значения и задержку перезапускаем сервис
-//        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
-//            checkAndStopService();
-//            checkAndStartService();
-//        }
-//    }
+    private static void updateService(){ // Чтобы обновить значения и задержку перезапускаем сервис
+        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
+            checkAndStopService();
+            checkAndStartService();
+        }
+    }
 
 
-//    public static void checkAndStartService(){
-//        Log.d(LOG_TAG, "try start ScreenshotService. isServiceRunning = "
-//                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
-//        if (!ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
-//            AppApplication.getAppContext().startService(
-//                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
-//            );
-//            Log.d(LOG_TAG, "start ScreenshotService (checkAndStartService)");
-//        } else {
-//            Log.d(LOG_TAG, "ScreenshotService already started");
-//        }
-//    }
+    public static void checkAndStartService(){
+        Log.d(LOG_TAG, "try start ScreenshotService. isServiceRunning = "
+                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
+        if (!ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
+            AppApplication.getAppContext().startService(
+                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
+            );
+            Log.d(LOG_TAG, "start ScreenshotService (checkAndStartService)");
+        } else {
+            Log.d(LOG_TAG, "ScreenshotService already started");
+        }
+    }
 
-//    public static void checkAndStopService(){
-//        Log.d(LOG_TAG, "try stop ScreenshotService. isServiceRunning = "
-//                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
-//        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
-//            AppApplication.getAppContext().stopService(
-//                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
-//            );
-//            Log.d(LOG_TAG, "stop ScreenshotService (checkAndStartService)");
-//        } else {
-//            Log.d(LOG_TAG, "ScreenshotService already stopped");
-//        }
-//    }
+    public static void checkAndStopService(){
+        Log.d(LOG_TAG, "try stop ScreenshotService. isServiceRunning = "
+                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
+        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
+            AppApplication.getAppContext().stopService(
+                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
+            );
+            Log.d(LOG_TAG, "stop ScreenshotService (checkAndStartService)");
+        } else {
+            Log.d(LOG_TAG, "ScreenshotService already stopped");
+        }
+    }
 
 
     @Override
@@ -157,25 +151,17 @@ public class ScreenshotService extends Service {
         Log.d(LOG_TAG, "onCreate");
         mgr=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);
         wmgr=(WindowManager)getSystemService(WINDOW_SERVICE);
-
-//        IntentFilter filter = new IntentFilter();
-//        filter.addAction(Intent.ACTION_SCREEN_ON);
-//        filter.addAction(Intent.ACTION_SCREEN_OFF);
-//        mScreenReceiver = new ScreenReceiver();
-//        registerReceiver(mScreenReceiver, filter);
-
-//        startNotification();
     }
 
 //    public void setDelay_seconds( int seconds ){
 //        delay_seconds = seconds;
 //    }
 
-//    public void setMediaProjResults(int resultCode, Intent data){
-//        Log.d(LOG_TAG, String.format("Set MediaProjResults: resultCode=%d, data=%s", resultCode, data.toString()));
-//        resultMediaProjCode = resultCode;
-//        resultMediaProjData = data;
-//    }
+    public void setMediaProjResults(int resultCode, Intent data){
+        Log.d(LOG_TAG, String.format("Set MediaProjResults: resultCode=%d, data=%s", resultCode, data.toString()));
+        resultMediaProjCode = resultCode;
+        resultMediaProjData = data;
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -253,12 +239,17 @@ public class ScreenshotService extends Service {
                 startCapture();
             } else {
                 Log.d(LOG_TAG, "service standby mode");
-                mHandler.postDelayed(mMonitorRunnable, delay_seconds * 1000 * 5);
+                mHandler.postDelayed(mMonitorRunnable, delay_seconds * 1000 * 2);
             }
         }
     }
 
     private void startCapture() {
+        if(resultMediaProjCode != Activity.RESULT_OK || resultMediaProjData == null){
+            Log.e(LOG_TAG, "MediaProjection not initialized");
+            return;
+        }
+
         projection=mgr.getMediaProjection(resultMediaProjCode, resultMediaProjData);
         it = new ImageTransmogrifier(this);
 
