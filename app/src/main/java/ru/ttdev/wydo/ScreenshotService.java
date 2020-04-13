@@ -1,19 +1,18 @@
 package ru.ttdev.wydo;
 
-import android.app.Activity;
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
-import android.media.ToneGenerator;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -24,6 +23,7 @@ import androidx.core.app.NotificationCompat;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.RemoteViews;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,10 +37,10 @@ public class ScreenshotService extends Service {
     private static final String LOG_TAG = "ScreenService";
     public static final String NOTIFICATION_CHANNEL_ID="wydo_notify_channel";
     public static final int NOTIFICATION_ID = 0xABC123;
-//    public FilesWorker filesWorker = new FilesWorker();
-    public static final String EXTRA_RESULT_CODE="resultCode";
-    public static final String EXTRA_RESULT_INTENT="resultIntent";
+    Notification notification;
 
+    public static final String EXTRA_RESULT_CODE = "resultCode";
+    public static final String EXTRA_RESULT_INTENT = "resultIntent";
 
     static final int VIRT_DISPLAY_FLAGS=
             DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY |
@@ -68,7 +68,6 @@ public class ScreenshotService extends Service {
     private VirtualDisplay vdisplay;
     private ImageTransmogrifier it;
 
-
     public static ScreenshotService getInstance()
     {
         return instance;
@@ -78,54 +77,38 @@ public class ScreenshotService extends Service {
         return ServiceHelper.isMyServiceRunning(ScreenshotService.class);
     }
 
-//    public static void updateValues() {
-//        updateService();
-//    }
+    public static void updateServiceValues(){
+        if (getInstance() != null){
+            Log.d(LOG_TAG, "Try update service values");
+            getInstance().updateValues();
+        } else {
+            Log.d(LOG_TAG, "service getInstance in null");
+        }
+    }
+
+    private void updateValues() {
+        delay_seconds = AppPreferences.getDelay();
+        max_count = AppPreferences.getMaxFilesCount();
+        store_to_sd = AppPreferences.getStoreSD();
+    }
 
     public void stop() {
         context.stopService(new Intent(context, ScreenshotService.class));
         Log.d(LOG_TAG, "stop");
     }
 
-//    public void forceRestart() {
-//        Log.d(LOG_TAG, "forceRestart");
-//        stop();
-//        checkAndStartService();
-//    }
-
-//    private static void updateService(){ // Чтобы обновить значения и задержку перезапускаем сервис
-//        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
-//            checkAndStopService();
-//            checkAndStartService();
-//        }
-//    }
-
-
-//    public static void checkAndStartService(){
-//        Log.d(LOG_TAG, "try start ScreenshotService. isServiceRunning = "
-//                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
-//        if (!ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
-//            AppApplication.getAppContext().startService(
-//                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
-//            );
-//            Log.d(LOG_TAG, "start ScreenshotService (checkAndStartService)");
-//        } else {
-//            Log.d(LOG_TAG, "ScreenshotService already started");
-//        }
-//    }
-
-//    public static void checkAndStopService(){
-//        Log.d(LOG_TAG, "try stop ScreenshotService. isServiceRunning = "
-//                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
-//        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
-//            AppApplication.getAppContext().stopService(
-//                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
-//            );
-//            Log.d(LOG_TAG, "stop ScreenshotService (checkAndStartService)");
-//        } else {
-//            Log.d(LOG_TAG, "ScreenshotService already stopped");
-//        }
-//    }
+    public static void checkAndStopService(){
+        Log.d(LOG_TAG, "try stop ScreenshotService. isServiceRunning = "
+                + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
+        if (ServiceHelper.isMyServiceRunning(ScreenshotService.class)) {
+            AppApplication.getAppContext().stopService(
+                    new Intent(AppApplication.getAppContext(), ScreenshotService.class)
+            );
+            Log.d(LOG_TAG, "stop ScreenshotService (checkAndStartService)");
+        } else {
+            Log.d(LOG_TAG, "ScreenshotService already stopped");
+        }
+    }
 
 
     @Override
@@ -147,60 +130,54 @@ public class ScreenshotService extends Service {
         super.onCreate();
         context = AppApplication.getAppContext();
         instance = this;
-
-        iHandlerThread.start();
-        iHandler=new Handler(iHandlerThread.getLooper());
-
-        mHandler = new Handler();
-        mMonitorRunnable = new MonitorRunnable();
-
-        Log.d(LOG_TAG, "onCreate");
-        mgr=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);
-        wmgr=(WindowManager)getSystemService(WINDOW_SERVICE);
-
-//        IntentFilter filter = new IntentFilter();
-//        filter.addAction(Intent.ACTION_SCREEN_ON);
-//        filter.addAction(Intent.ACTION_SCREEN_OFF);
-//        mScreenReceiver = new ScreenReceiver();
-//        registerReceiver(mScreenReceiver, filter);
-
-//        startNotification();
     }
-
-//    public void setDelay_seconds( int seconds ){
-//        delay_seconds = seconds;
-//    }
-
-//    public void setMediaProjResults(int resultCode, Intent data){
-//        Log.d(LOG_TAG, String.format("Set MediaProjResults: resultCode=%d, data=%s", resultCode, data.toString()));
-//        resultMediaProjCode = resultCode;
-//        resultMediaProjData = data;
-//    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(LOG_TAG, "onStartCommand");
-        delay_seconds = AppPreferences.getDelay();
-        max_count = AppPreferences.getMaxFilesCount();
-        store_to_sd = AppPreferences.getStoreSD();
+        updateValues();
 
-        if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
-            store_to_sd = false;
-            Log.d(LOG_TAG, "SD not mounted or read only");
+        Bundle extras = intent.getExtras();
+        if (extras != null) {
+            Log.d(LOG_TAG, "Get result media proj from intent");
+            resultMediaProjCode = intent.getIntExtra(EXTRA_RESULT_CODE, 1337);
+            resultMediaProjData = intent.getParcelableExtra(EXTRA_RESULT_INTENT);
+
+            Log.d(LOG_TAG, "Try get media projection service");
+            mgr=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);
+            wmgr=(WindowManager)getSystemService(WINDOW_SERVICE);
+
+
+            if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
+                store_to_sd = false;
+                Log.d(LOG_TAG, "SD not mounted or read only");
+            }
+
+            iHandlerThread.start();
+            iHandler=new Handler(iHandlerThread.getLooper());
+            mHandler = new Handler();
+            mMonitorRunnable = new MonitorRunnable();
+            mHandler.post(mMonitorRunnable);
+
+        }
+        else {
+            Intent activity_intent = new Intent(getApplicationContext(), ProjectionActivity.class);
+            activity_intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity_intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            activity_intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            getApplicationContext().startActivity(activity_intent);
         }
 
-        resultMediaProjCode = intent.getIntExtra(EXTRA_RESULT_CODE, 1337);
-        resultMediaProjData = intent.getParcelableExtra(EXTRA_RESULT_INTENT);
-
-        foregroundify();
-
-        mHandler.post(mMonitorRunnable);
+        startNotification();
 
         Log.d(LOG_TAG, "start service result: isServiceRunning = "
                 + ServiceHelper.isMyServiceRunning(ScreenshotService.class));
 
+        if (extras == null) stopSelf();
+
         return START_STICKY;
     }
+
 
     public static boolean isExternalStorageReadOnly() {
         String extStorageState = Environment.getExternalStorageState();
@@ -212,7 +189,7 @@ public class ScreenshotService extends Service {
         return Environment.MEDIA_MOUNTED.equals(extStorageState);
     }
 
-    private void foregroundify(){
+    private void startNotification(){
         NotificationManager mgr=
                 (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 
@@ -253,7 +230,7 @@ public class ScreenshotService extends Service {
                 startCapture();
             } else {
                 Log.d(LOG_TAG, "service standby mode");
-                mHandler.postDelayed(mMonitorRunnable, delay_seconds * 1000 * 5);
+                mHandler.postDelayed(mMonitorRunnable, delay_seconds * 1000);
             }
         }
     }
@@ -275,7 +252,7 @@ public class ScreenshotService extends Service {
                 VIRT_DISPLAY_FLAGS, it.getSurface(), null, iHandler);
 
         projection.registerCallback(cb, iHandler);
-        mHandler.postDelayed(mMonitorRunnable,  1000 * 5);
+        mHandler.postDelayed(mMonitorRunnable,  1000 * delay_seconds);
     }
 
     public void saveFile(final byte[] png){

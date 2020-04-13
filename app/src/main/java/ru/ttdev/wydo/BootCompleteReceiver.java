@@ -3,29 +3,33 @@ package ru.ttdev.wydo;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.util.Log;
+import android.widget.Toast;
 
 
 public class BootCompleteReceiver extends BroadcastReceiver {
-    private static final String TAG = "BootCompleteReceiver";
+    private static final String LOG_TAG = "BootCompleteReceiver";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
 
-        if (action.equals(Intent.ACTION_POWER_CONNECTED))
-            Log.d(TAG, "power connected detected");
-
-        if (action.equals(Intent.ACTION_BOOT_COMPLETED))
-            Log.d(TAG, "boot completed detected");
-
-        if (action.equals(Intent.ACTION_LOCKED_BOOT_COMPLETED))
-            Log.d(TAG, "locked boot completed detected");
-
-        if (action.equals(Intent.ACTION_EXTERNAL_APPLICATIONS_AVAILABLE))
-            Log.d(TAG, "external app available detected");
-
-        Log.d(TAG, "bootcomplete recevied");
-//        if (AppPreferences.getAutoStart()) ScreenshotService.checkAndStartService();
+        if (AppPreferences.getAutoStart()){
+            try {
+                Log.d(LOG_TAG, "Try to start service");
+                Intent service_intent = new Intent(context, ScreenshotService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Log.d(LOG_TAG, "startForegroundService");
+                    context.startForegroundService(service_intent);
+                } else {
+                    context.startService(service_intent);
+                }
+            }catch(Exception ex) {
+                Toast.makeText(context, ex.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        } else {
+            Log.d(LOG_TAG, "Autostart disabled");
+        }
     }
 }
