@@ -332,6 +332,7 @@ public class ScreenshotService extends Service {
         Log.d( LOG_TAG, "After clearing " + filesDir.listFiles().length );
     }
 
+
     private final class ScreenReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
